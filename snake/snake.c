@@ -1,7 +1,6 @@
 // gcc snake.c -lSDL2 -lSDL2_ttf -o ../bin/snake
 
 #include "snake.h"
-#include <SDL2/SDL_ttf.h>
 
 void change_direction(snake_t *snake, direction_e dir) {
   direction_e cur_dir = (*snake).dir;
@@ -119,27 +118,23 @@ int main() {
       } else if (e.type == SDL_KEYDOWN) {
         switch (e.key.keysym.sym) {
         case SDLK_RIGHT:
-          change_direction(&snake, RIGHT);
-          break;
         case SDLK_l:
+        case SDLK_d:
           change_direction(&snake, RIGHT);
           break;
         case SDLK_LEFT:
-          change_direction(&snake, LEFT);
-          break;
         case SDLK_h:
+        case SDLK_a:
           change_direction(&snake, LEFT);
           break;
         case SDLK_UP:
-          change_direction(&snake, UP);
-          break;
         case SDLK_k:
+        case SDLK_w:
           change_direction(&snake, UP);
           break;
         case SDLK_DOWN:
-          change_direction(&snake, DOWN);
-          break;
         case SDLK_j:
+        case SDLK_s:
           change_direction(&snake, DOWN);
           break;
         default:
