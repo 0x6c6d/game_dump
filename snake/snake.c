@@ -1,6 +1,7 @@
-// gcc main.c -lSDL2 -o ../bin/snake
+// gcc snake.c -lSDL2 -lSDL2_ttf -o ../bin/snake
 
 #include "snake.h"
+#include <SDL2/SDL_ttf.h>
 
 void change_direction(snake_t *snake, direction_e dir) {
   direction_e cur_dir = (*snake).dir;
@@ -19,28 +20,28 @@ void change_direction(snake_t *snake, direction_e dir) {
   snake->dir = dir;
 }
 
-void move_snake(snake_t *snake, int speed) {
+void move_snake(snake_t *snake) {
   switch ((*snake).dir) {
   case RIGHT:
-    snake->rect.x += speed;
+    snake->rect.x += REC_SIZE;
     if (snake->rect.x == WIN_W) {
       snake->rect.x = 0;
     }
     break;
   case LEFT:
-    snake->rect.x -= speed;
+    snake->rect.x -= REC_SIZE;
     if (snake->rect.x == 0) {
       snake->rect.x = WIN_W;
     }
     break;
   case UP:
-    snake->rect.y -= speed;
+    snake->rect.y -= REC_SIZE;
     if (snake->rect.y == 0) {
       snake->rect.y = WIN_H;
     }
     break;
   case DOWN:
-    snake->rect.y += speed;
+    snake->rect.y += REC_SIZE;
     if (snake->rect.y == WIN_H) {
       snake->rect.y = 0;
     }
@@ -49,19 +50,44 @@ void move_snake(snake_t *snake, int speed) {
 }
 
 SDL_Rect create_apple() {
-  int x = REC_SIZE + rand() % (WIN_W - REC_SIZE - REC_SIZE + 1);
-  int y = REC_SIZE + rand() % (WIN_H - REC_SIZE - REC_SIZE);
-  SDL_Rect apple = {x, y, REC_SIZE, REC_SIZE};
+  int x = rand() % (WIN_W - REC_SIZE + 1); // 0 - 630
+  int x_base10 = x - (x % REC_SIZE);       // only hit 0, 10, 20 etc.
+  int y = rand() % (WIN_H - REC_SIZE + 1); // 0 - 470
+  int y_base10 = y - (y % REC_SIZE);
+  SDL_Rect apple = {x_base10, y_base10, REC_SIZE, REC_SIZE};
   return apple;
 }
 
-int main() {
-  srand(time(NULL));
+bool detect_collision(snake_t *snake, SDL_Rect *apple) {
+  if (snake->rect.x == apple->x && snake->rect.y == apple->y) {
+    return true;
+  }
 
-  // Setup variables
-  int speed = START_SPEED;
+  return false;
+}
+
+void render_text(SDL_Renderer *renderer, int x, int y, const char *text,
+                 TTF_Font *font, SDL_Rect *rect, SDL_Color *color) {
+  SDL_Surface *surface;
+  SDL_Texture *texture;
+
+  surface = TTF_RenderText_Solid(font, text, *color);
+  texture = SDL_CreateTextureFromSurface(renderer, surface);
+  rect->x = x;
+  rect->y = y;
+  rect->w = surface->w;
+  rect->h = surface->h;
+
+  SDL_FreeSurface(surface);
+  SDL_RenderCopy(renderer, texture, NULL, rect);
+  SDL_DestroyTexture(texture);
+}
+
+int main() {
+  // Setup stuff
+  srand(time(NULL));
+  int score = 0;
   bool game_running = true;
-  bool new_apple = false;
 
   // Setup snake + apple
   SDL_Rect apple = create_apple();
@@ -74,6 +100,16 @@ int main() {
   SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
   SDL_Event e;
 
+  // Setup text (for game score)
+  SDL_Rect score_rect;
+  SDL_Color color = {233, 233, 233, 255};
+  TTF_Init();
+  TTF_Font *font = TTF_OpenFont(CUSTOM_FONT, 24);
+  if (font == NULL) {
+    fprintf(stderr, "error: font not found -> change it inside the snake.h file\n");
+    return 1;
+  }
+
   // Game Loop
   while (game_running) {
     // Check for user inputs
@@ -84,29 +120,45 @@ int main() {
         switch (e.key.keysym.sym) {
         case SDLK_RIGHT:
           change_direction(&snake, RIGHT);
-        }
-        switch (e.key.keysym.sym) {
+          break;
+        case SDLK_l:
+          change_direction(&snake, RIGHT);
+          break;
         case SDLK_LEFT:
           change_direction(&snake, LEFT);
-        }
-        switch (e.key.keysym.sym) {
+          break;
+        case SDLK_h:
+          change_direction(&snake, LEFT);
+          break;
         case SDLK_UP:
           change_direction(&snake, UP);
-        }
-        switch (e.key.keysym.sym) {
+          break;
+        case SDLK_k:
+          change_direction(&snake, UP);
+          break;
         case SDLK_DOWN:
           change_direction(&snake, DOWN);
+          break;
+        case SDLK_j:
+          change_direction(&snake, DOWN);
+          break;
+        default:
+          break;
         }
       }
     }
 
-    // Create apple
-    if (new_apple) {
-      apple = create_apple();
-    }
-
     // Move snake
-    move_snake(&snake, speed);
+    move_snake(&snake);
+
+    // Detect collision
+    bool collision = detect_collision(&snake, &apple);
+
+    // Create new apple
+    if (collision) {
+      apple = create_apple();
+      collision = false;
+    }
 
     // Render map
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
@@ -120,10 +172,18 @@ int main() {
     SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
     SDL_RenderFillRect(renderer, &snake.rect);
 
+    // Render score
+    render_text(renderer, 5, 5, "Score:", font, &score_rect, &color);
+
     // Render scene
     SDL_RenderPresent(renderer);
-    SDL_Delay(25);
+    SDL_Delay(100);
   }
+
+  TTF_Quit();
+  SDL_DestroyRenderer(renderer);
+  SDL_DestroyWindow(window);
+  SDL_Quit();
 
   return 0;
 }
