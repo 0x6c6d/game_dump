@@ -1,6 +1,8 @@
 // gcc snake.c -lSDL2 -lSDL2_ttf -o ../bin/snake
 
 #include "snake.h"
+#include <SDL2/SDL_ttf.h>
+#include <stdio.h>
 
 void change_direction(snake_t *snake, direction_e dir) {
   direction_e cur_dir = (*snake).dir;
@@ -29,14 +31,14 @@ void move_snake(snake_t *snake) {
     break;
   case LEFT:
     snake->rect.x -= REC_SIZE;
-    if (snake->rect.x == 0) {
-      snake->rect.x = WIN_W;
+    if (snake->rect.x == -REC_SIZE) {
+      snake->rect.x = WIN_W - REC_SIZE;
     }
     break;
   case UP:
     snake->rect.y -= REC_SIZE;
-    if (snake->rect.y == 0) {
-      snake->rect.y = WIN_H;
+    if (snake->rect.y == -REC_SIZE) {
+      snake->rect.y = WIN_H - REC_SIZE;
     }
     break;
   case DOWN:
@@ -49,10 +51,12 @@ void move_snake(snake_t *snake) {
 }
 
 SDL_Rect create_apple() {
-  int x = rand() % (WIN_W - REC_SIZE + 1); // 0 - 630
-  int x_base10 = x - (x % REC_SIZE);       // only hit 0, 10, 20 etc.
-  int y = rand() % (WIN_H - REC_SIZE + 1); // 0 - 470
+  int x = REC_SIZE + rand() % (WIN_W - 3 * REC_SIZE + 1); // 20 - 600
+  int x_base10 = x - (x % REC_SIZE); // only hit 0, 10, 20 etc.
+  
+  int y = 2 * REC_SIZE + rand() % (WIN_H - 3 * REC_SIZE + 1); // 40 - 460
   int y_base10 = y - (y % REC_SIZE);
+  
   SDL_Rect apple = {x_base10, y_base10, REC_SIZE, REC_SIZE};
   return apple;
 }
@@ -85,7 +89,9 @@ void render_text(SDL_Renderer *renderer, int x, int y, const char *text,
 int main() {
   // Setup stuff
   srand(time(NULL));
+  int snake_speed = 1;
   int score = 0;
+  char *score_str;
   bool game_running = true;
 
   // Setup snake + apple
@@ -105,7 +111,10 @@ int main() {
   TTF_Init();
   TTF_Font *font = TTF_OpenFont(CUSTOM_FONT, 24);
   if (font == NULL) {
-    fprintf(stderr, "error: font not found -> change it inside the snake.h file\n");
+    fprintf(stderr,
+            "error: font not found -> change it inside the snake.h file\nerror "
+            "msg: %s\n",
+            TTF_GetError());
     return 1;
   }
 
@@ -151,7 +160,9 @@ int main() {
 
     // Create new apple
     if (collision) {
+      if(snake_speed < 15) snake_speed += 1;
       apple = create_apple();
+      score += 1;
       collision = false;
     }
 
@@ -168,11 +179,14 @@ int main() {
     SDL_RenderFillRect(renderer, &snake.rect);
 
     // Render score
-    render_text(renderer, 5, 5, "Score:", font, &score_rect, &color);
+    asprintf(&score_str, "Score: %d", score);
+    render_text(renderer, 5, 5, score_str, font, &score_rect, &color);
 
     // Render scene
     SDL_RenderPresent(renderer);
-    SDL_Delay(100);
+
+    int delay = 200 - (10 * (snake_speed - 1)); // sp 1 = 200, sp 2 = 190, sp 3 = 180 ...
+    SDL_Delay(delay);
   }
 
   TTF_Quit();

@@ -12,8 +12,10 @@
 
 #define WIN_H 480
 #define WIN_W 640
-#define REC_SIZE 10
-#define CUSTOM_FONT "/use/share/fonts/noto/NotoSansSoyomno-Regular.ttf"
+#define REC_SIZE 20
+#define MAX_SCORE 50
+// installed font via: sudo pacman -S gnu-free-fonts
+#define CUSTOM_FONT "/usr/share/fonts/gnu-free/FreeMono.otf"
 
 typedef enum { RIGHT, LEFT, UP, DOWN } direction_e;
 
