@@ -67,7 +67,7 @@ SDL_Rect create_apple() {
   return apple;
 }
 
-bool detect_collision(snake_t *snake, SDL_Rect *apple) {
+bool detect_collision_apple(snake_t *snake, SDL_Rect *apple) {
   if (snake->rects[0].x == apple->x && snake->rects[0].y == apple->y) {
     return true;
   }
@@ -75,23 +75,33 @@ bool detect_collision(snake_t *snake, SDL_Rect *apple) {
   return false;
 }
 
+bool detect_collision_snake(snake_t *snake) {
+  for (int i = 1; i < snake->rects_size - 1; ++i) {
+    if (snake->rects[0].x == snake->rects[i].x &&
+        snake->rects[0].y == snake->rects[i].y) {
+      return true;
+    }
+  }
+  return false;
+}
+
 void create_new_snake_rect(snake_t *snake) {
-  int rect_size = snake->rects_size;  
+  int rect_size = snake->rects_size;
   if (snake->rects_size >= MAX_SCORE) {
     return;
   }
 
   SDL_Rect new_head = snake->rects[rect_size - 1];
-  switch ((*snake).dir){
-    case UP:
-      new_head.y += 2 * REC_SIZE;
-    case DOWN:
-      new_head.y -= REC_SIZE;
-      new_head.x += REC_SIZE;
-    case RIGHT:
-      new_head.x -= 2 * REC_SIZE;
-    case LEFT:
-      new_head.x += REC_SIZE;
+  switch ((*snake).dir) {
+  case UP:
+    new_head.y += 2 * REC_SIZE;
+  case DOWN:
+    new_head.y -= REC_SIZE;
+    new_head.x += REC_SIZE;
+  case RIGHT:
+    new_head.x -= 2 * REC_SIZE;
+  case LEFT:
+    new_head.x += REC_SIZE;
   }
 
   snake->rects[rect_size] = new_head;
@@ -121,7 +131,8 @@ int main() {
   int snake_speed = 1;
   int score = 0;
   char *score_str;
-  bool game_running = true;
+  bool game_over = false;
+  bool gameloop_running = true;
 
   // Setup snake + apple
   SDL_Rect apple = create_apple();
@@ -152,11 +163,11 @@ int main() {
   }
 
   // Game Loop
-  while (game_running) {
+  while (gameloop_running) {
     // Check for user inputs
     while (SDL_PollEvent(&e)) {
       if (e.type == SDL_QUIT) {
-        game_running = false;
+        gameloop_running = false;
       } else if (e.type == SDL_KEYDOWN) {
         switch (e.key.keysym.sym) {
         case SDLK_RIGHT:
@@ -185,16 +196,42 @@ int main() {
       }
     }
 
+    if (game_over) {
+      SDL_Delay(100);
+      continue;
+    }
+
+    // Render map
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_RenderClear(renderer);
+
     // Move snake
     move_snake(&snake);
 
     // Detect collision
-    bool collision = detect_collision(&snake, &apple);
+    bool collision_snake = detect_collision_snake(&snake);
+    if (collision_snake) {
+      game_over = true;
+      asprintf(&score_str, "Game over! Score: %d", score);
+      render_text(renderer, 5, 5, score_str, font, &score_rect, &color);
+      SDL_RenderPresent(renderer);
+      continue;
+    }
+
+    bool collision_apple = detect_collision_apple(&snake, &apple);
 
     // Create new apple
-    if (collision) {
-      collision = false;
+    if (collision_apple) {
+      collision_apple = false;
       score += 1;
+
+      if (score == MAX_SCORE) {
+        game_over = true;
+        asprintf(&score_str, "You won! Score: %d", score);
+        render_text(renderer, 5, 5, score_str, font, &score_rect, &color);
+        SDL_RenderPresent(renderer);
+        continue;
+      }
 
       if (snake_speed < 15)
         snake_speed += 1;
@@ -202,10 +239,6 @@ int main() {
       create_new_snake_rect(&snake);
       apple = create_apple();
     }
-
-    // Render map
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-    SDL_RenderClear(renderer);
 
     // Render score
     asprintf(&score_str, "Score: %d", score);
