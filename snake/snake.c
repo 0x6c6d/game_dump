@@ -1,8 +1,6 @@
 // gcc snake.c -lSDL2 -lSDL2_ttf -o ../bin/snake
 
 #include "snake.h"
-#include <SDL2/SDL_ttf.h>
-#include <stdio.h>
 
 void change_direction(snake_t *snake, direction_e dir) {
   direction_e cur_dir = (*snake).dir;
@@ -22,29 +20,37 @@ void change_direction(snake_t *snake, direction_e dir) {
 }
 
 void move_snake(snake_t *snake) {
+  // shift every rect one index up & place last rect at the start
+  SDL_Rect temp_first = snake->rects[0];
+  SDL_Rect temp_last = snake->rects[snake->rects_size - 1];
+  for (int i = snake->rects_size - 1; i > 0; --i) {
+    snake->rects[i] = snake->rects[i - 1];
+  }
+  snake->rects[0] = temp_first;
+
   switch ((*snake).dir) {
   case RIGHT:
-    snake->rect.x += REC_SIZE;
-    if (snake->rect.x == WIN_W) {
-      snake->rect.x = 0;
+    snake->rects[0].x = temp_first.x + REC_SIZE;
+    if (snake->rects[0].x == WIN_W) {
+      snake->rects[0].x = 0;
     }
     break;
   case LEFT:
-    snake->rect.x -= REC_SIZE;
-    if (snake->rect.x == -REC_SIZE) {
-      snake->rect.x = WIN_W - REC_SIZE;
+    snake->rects[0].x = temp_first.x - REC_SIZE;
+    if (snake->rects[0].x == -REC_SIZE) {
+      snake->rects[0].x = WIN_W - REC_SIZE;
     }
     break;
   case UP:
-    snake->rect.y -= REC_SIZE;
-    if (snake->rect.y == -REC_SIZE) {
-      snake->rect.y = WIN_H - REC_SIZE;
+    snake->rects[0].y = temp_first.y - REC_SIZE;
+    if (snake->rects[0].y == -REC_SIZE) {
+      snake->rects[0].y = WIN_H - REC_SIZE;
     }
     break;
   case DOWN:
-    snake->rect.y += REC_SIZE;
-    if (snake->rect.y == WIN_H) {
-      snake->rect.y = 0;
+    snake->rects[0].y = temp_first.y + REC_SIZE;
+    if (snake->rects[0].y == WIN_H) {
+      snake->rects[0].y = 0;
     }
     break;
   }
@@ -53,20 +59,43 @@ void move_snake(snake_t *snake) {
 SDL_Rect create_apple() {
   int x = REC_SIZE + rand() % (WIN_W - 3 * REC_SIZE + 1); // 20 - 600
   int x_base10 = x - (x % REC_SIZE); // only hit 0, 10, 20 etc.
-  
+
   int y = 2 * REC_SIZE + rand() % (WIN_H - 3 * REC_SIZE + 1); // 40 - 460
   int y_base10 = y - (y % REC_SIZE);
-  
+
   SDL_Rect apple = {x_base10, y_base10, REC_SIZE, REC_SIZE};
   return apple;
 }
 
 bool detect_collision(snake_t *snake, SDL_Rect *apple) {
-  if (snake->rect.x == apple->x && snake->rect.y == apple->y) {
+  if (snake->rects[0].x == apple->x && snake->rects[0].y == apple->y) {
     return true;
   }
 
   return false;
+}
+
+void create_new_snake_rect(snake_t *snake) {
+  int rect_size = snake->rects_size;  
+  if (snake->rects_size >= MAX_SCORE) {
+    return;
+  }
+
+  SDL_Rect new_head = snake->rects[rect_size - 1];
+  switch ((*snake).dir){
+    case UP:
+      new_head.y += 2 * REC_SIZE;
+    case DOWN:
+      new_head.y -= REC_SIZE;
+      new_head.x += REC_SIZE;
+    case RIGHT:
+      new_head.x -= 2 * REC_SIZE;
+    case LEFT:
+      new_head.x += REC_SIZE;
+  }
+
+  snake->rects[rect_size] = new_head;
+  snake->rects_size += 1;
 }
 
 void render_text(SDL_Renderer *renderer, int x, int y, const char *text,
@@ -96,7 +125,11 @@ int main() {
 
   // Setup snake + apple
   SDL_Rect apple = create_apple();
-  snake_t snake = {UP, {WIN_W / 2, WIN_H / 2, REC_SIZE, REC_SIZE}};
+  SDL_Rect head = {WIN_W / 2, WIN_H / 2, REC_SIZE, REC_SIZE};
+  snake_t snake;
+  snake.dir = UP;
+  snake.rects[0] = head;
+  snake.rects_size = 1;
 
   // Setup SDL
   SDL_Init(SDL_INIT_EVERYTHING);
@@ -160,15 +193,23 @@ int main() {
 
     // Create new apple
     if (collision) {
-      if(snake_speed < 15) snake_speed += 1;
-      apple = create_apple();
-      score += 1;
       collision = false;
+      score += 1;
+
+      if (snake_speed < 15)
+        snake_speed += 1;
+
+      create_new_snake_rect(&snake);
+      apple = create_apple();
     }
 
     // Render map
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
+
+    // Render score
+    asprintf(&score_str, "Score: %d", score);
+    render_text(renderer, 5, 5, score_str, font, &score_rect, &color);
 
     // Render apple
     SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
@@ -176,16 +217,16 @@ int main() {
 
     // Render snake
     SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
-    SDL_RenderFillRect(renderer, &snake.rect);
-
-    // Render score
-    asprintf(&score_str, "Score: %d", score);
-    render_text(renderer, 5, 5, score_str, font, &score_rect, &color);
+    for (int i = 0; i < snake.rects_size; ++i) {
+      SDL_RenderFillRect(renderer, &snake.rects[i]);
+    }
 
     // Render scene
     SDL_RenderPresent(renderer);
 
-    int delay = 200 - (10 * (snake_speed - 1)); // sp 1 = 200, sp 2 = 190, sp 3 = 180 ...
+    int delay =
+        200 -
+        (10 * (snake_speed - 1)); // sp 1 = 200, sp 2 = 190, sp 3 = 180 ...
     SDL_Delay(delay);
   }
 

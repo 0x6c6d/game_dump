@@ -21,13 +21,15 @@ typedef enum { RIGHT, LEFT, UP, DOWN } direction_e;
 
 typedef struct _snake {
   direction_e dir;
-  SDL_Rect rect;
+  SDL_Rect rects[MAX_SCORE];
+  int rects_size;
 } snake_t;
 
 void change_direction(snake_t *, direction_e);
 void move_snake(snake_t *);
 SDL_Rect create_apple();
 bool detect_collision(snake_t *, SDL_Rect *);
+void create_new_snake_rect(snake_t *);
 void render_text(SDL_Renderer *renderer, int x, int y, const char *text,
                  TTF_Font *font, SDL_Rect *rect, SDL_Color *color);
 
