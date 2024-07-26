@@ -1,0 +1,93 @@
+#include <SDL2/SDL.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+
+#define ASSERT(_e, ...)                                                        \
+  if (!(_e)) {                                                                 \
+    fprintf(stderr, __VA_ARGS__);                                              \
+    exit(1);                                                                   \
+  }
+
+typedef float f32;
+typedef double f64;
+typedef uint8_t u8;
+typedef uint16_t u16;
+typedef uint32_t u32;
+typedef uint64_t u64;
+typedef int8_t i8;
+typedef int16_t i16;
+typedef int32_t i32;
+typedef int64_t i64;
+typedef size_t usize;
+typedef ssize_t isize;
+
+#define SCREEN_WIDTH 384
+#define SCREEN_HEIGHT 216
+
+#define MAP_SIZE 8
+static u8 MAPDATA[MAP_SIZE * MAP_SIZE] = {
+    1, 1, 1, 1, 1, 1, 1, 1,
+    1, 0, 0, 0, 0, 0, 0, 1,
+    1, 0, 0, 0, 0, 3, 0, 1,
+    1, 0, 0, 0, 0, 0, 0, 1,
+    1, 0, 2, 0, 4, 4, 0, 1,
+    1, 0, 0, 0, 4, 0, 0, 1,
+    1, 0, 3, 0, 0, 0, 0, 1,
+    1, 1, 1, 1, 1, 1, 1, 1,
+};
+
+typedef struct v2_s {
+  f32 x, y;
+} v2;
+
+typedef struct v2i_s {
+  i32 x, y;
+} v2i;
+
+typedef struct _state {
+  SDL_Window *window;
+  SDL_Texture *texture;
+  SDL_Renderer *renderer;
+  u32 pixels[SCREEN_WIDTH * SCREEN_HEIGHT];
+  bool quit;
+
+  v2 pos, dir, plane;
+} state_t;
+
+#define dot(v0, v1)                                                            \
+  ({                                                                           \
+    const v2 _v0 = (v0), _v1 = (v1);                                           \
+    (_v0.x * _v1.x) + (_v0.y * _v1.y);                                         \
+  })
+  
+#define length(v)                                                              \
+  ({                                                                           \
+    const v2 _v = (v);                                                         \
+    sqrtf(dot(_v, _v));                                                        \
+  })
+
+#define normalize(u)                                                           \
+  ({                                                                           \
+    const v2 _u = (u);                                                         \
+    const f32 l = length(_u);                                                  \
+    (v2){_u.x / l, _u.y / l};                                                  \
+  })
+
+#define min(a, b)                                                              \
+  ({                                                                           \
+    __typeof__(a) _a = (a), _b = (b);                                          \
+    _a < _b ? _a : _b;                                                         \
+  })
+
+#define max(a, b)                                                              \
+  ({                                                                           \
+    __typeof__(a) _a = (a), _b = (b);                                          \
+    _a > _b ? _a : _b;                                                         \
+  })
+
+#define sign(a)                                                                \
+  ({                                                                           \
+    __typeof__(a) _a = (a);                                                    \
+    (__typeof__(a))(_a < 0 ? -1 : (_a > 0 ? 1 : 0));                           \
+  })
